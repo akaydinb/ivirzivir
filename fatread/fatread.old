@@ -1,0 +1,105 @@
+#include<stdio.h>
+#include<stdlib.h>
+
+short fatsize;
+
+int fattest(FILE *imagefile)    {
+    char sectors_per_cluster, t;
+    short total_num_sectors;
+    int big_total_num_sectors = 0;
+    int numberofclusters;
+    
+    fseek(imagefile, 0x0D, SEEK_SET);
+    fread(&sectors_per_cluster, sizeof(char), 1, imagefile);
+    
+    fseek(imagefile, 0x13, SEEK_SET);
+    fread(&total_num_sectors, sizeof(short), 1, imagefile);
+    fread(&t, sizeof(char), 1, imagefile);      // empty read
+    fread(&fatsize, sizeof(short), 1, imagefile);
+    
+    if(!total_num_sectors)       {
+        fseek(imagefile, 0x20, SEEK_SET);
+        fread(&big_total_num_sectors, sizeof(int), 1, imagefile);
+    }
+    
+    numberofclusters = (big_total_num_sectors + total_num_sectors) / sectors_per_cluster;
+    
+    if(numberofclusters < 4096)
+        return 12;              // FAT12
+    else if(numberofclusters < 65536)
+        return 16;              // FAT16
+    else 
+        return 32;
+}
+
+int calc_fatstart(FILE *imagefile)      {
+    short temp, bytes_per_sector;
+    int fat_start; 
+    
+    fseek(imagefile, 0x0B, SEEK_SET);
+    fread(&bytes_per_sector, sizeof(short), 1, imagefile);
+    
+    fseek(imagefile, 0x01, SEEK_CUR);
+    fread(&temp, sizeof(short), 1, imagefile);
+    
+    fseek(imagefile, 0x20, SEEK_SET);
+    fread(&fat_start, sizeof(int), 1, imagefile);
+    
+    fat_start = fat_start + temp;
+    
+    return (bytes_per_sector * fat_start);
+}
+
+void readFAT32(FILE *imagefile) {
+    return;
+}
+
+void readFAT16(FILE *imagefile) {
+    return;
+}
+
+void readFAT12(FILE *imagefile) {
+    unsigned char *FAT;
+    int ob, x;
+    // int fatsize = (*nofcl >> 1) + *nofcl;
+    
+    FAT = (char *)malloc(sizeof(char) * fatsize);
+    fseek(imagefile, calc_fatstart(imagefile), SEEK_SET);
+    fread(FAT, sizeof(char), fatsize, imagefile);
+    
+    for(int c = 0; c < *nofcl; c++)    {
+        ob = (c >> 1) + c;
+        if(c & 1)       {
+            x = (FAT[ob] >> 4) | (FAT[ob + 1] << 4);
+        }
+        else    {
+            x = FAT[ob] | ((FAT[ob + 1] & 0x0F) << 8);
+        }
+        printf("%d -> %d [%X] \n", c, x, x);
+    }
+}
+
+int main(int argc, char *argv[])        {
+    
+    FILE *image;
+    int F;
+    
+    if( (image = fopen(argv[1], "r")) == NULL)  {
+        printf("Image file not found.\n");
+        return 1;
+    }
+    
+    F = fattest(image);
+    
+    if( F == 12 )
+        readFAT12(image);
+    else if ( F == 16 )
+        readFAT16(image);
+    else
+        readFAT32(image);
+    
+    
+    
+    
+    return 0;
+}
