@@ -3,14 +3,16 @@
 
 #define TRUE ( 1 == 1 )
 #define FALSE ( 1 == 0 )
-//                                 (Space)          '-'            '.'            '_'                   [0-9]                           [A-Z]
-#define isValidChar(C)          ((C == 0x20) || (C == 0x2D) || (C == 0x2E) || (C == 0x5F) || ((C >= 0x30) && (C <= 0x39)) || ((C >= 0x41) && (C <= 0x5A)))
+
+// mkfs.fat writes in small letters:
+//                                 (Space)          '-'            '.'            '_'                   [0-9]                           [A-Z]                          [a-z]
+#define isValidChar(C)          ((C == 0x20) || (C == 0x2D) || (C == 0x2E) || (C == 0x5F) || ((C >= 0x30) && (C <= 0x39)) || ((C >= 0x41) && (C <= 0x5A)) || ((C >=0x61) && (C <= 0x7A)))
 
 
 enum SectorType { MBR, FATBS, NTFS, XFS, undefined };
 enum FATType { FAT12, FAT16, FAT32 };
 
-struct FATBPB           {
+struct FATBPB           {       // Common for both FAT12 & FAT16 as well as FAT32
         unsigned char           bootjmp[3];                     // offset 0x0000
         unsigned char           oem_name[8];                    // offset 0x0003
         unsigned short          bytes_per_sector;               // offset 0x000B
@@ -27,7 +29,7 @@ struct FATBPB           {
         unsigned int            total_sectors_32;               // offset 0x0020
 }__attribute__((packed));
 
-struct FAT16BPB         {
+struct FAT16BPB         {       // Only valid for FAT12 and FAT16 but not FAT32
         unsigned char           bios_drive_num;                 // offset 0x0024
         unsigned char           reserved1;                      // offset 0x0025
         unsigned char           boot_signature;                 // offset 0x0026
@@ -39,7 +41,7 @@ struct FAT16BPB         {
 }__attribute__((packed));
 
 
-struct FAT32BPB         {
+struct FAT32BPB         {       // Only valid for FAT32
         unsigned int            table_size_32;                  // offset 0x0024
         unsigned short          extended_flags;                 // offset 0x0028
         unsigned short          fat_version;                    // offset 0x002A
@@ -76,16 +78,21 @@ typedef enum   SectorType       SectorType;
 typedef struct PartitionTableEntry PartitionTableEntry;
 
 typedef union RestBPB   {
+    // RestBPB is whole sector except common part i.e. common for all FATs
     FAT16BPB    FAT16_BootSector;
     FAT32BPB    FAT32_BootSector;
 } RestBPB;
 
 typedef struct BootSector       {
+    /* since FAT version cannot be known beforehand, common part is simple 
+     * struct but the rest is union struct, so after determining FAT version,
+     * separate fields can be accessed through subfields in the union. 
+     */
     FATBPB      CommonPart;
     RestBPB     UnionPart;
 } BootSector;
 
-typedef struct MBR_Type      {
+typedef struct MBR_Type      {  // struct for MBR 
         unsigned char           mbr_code[446];
         PartitionTableEntry     entry[4];
         unsigned char           mbr_signature;
