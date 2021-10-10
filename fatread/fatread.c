@@ -46,16 +46,35 @@ FATType fattest(BootSector *bootblock, unsigned int *total_clusters)        {
 }
 
 
-void readFAT32(FILE *imagefile, unsigned int clusters, unsigned int FATsectors) {
-    printf("FAT32 isn't implemented yet!.\n");
+void readFAT32(FILE *imagefile, unsigned int clusters, unsigned int FATsectors32) {
+    /* imagefile: file handler of image file (obviously)
+     * clusters: number of clusters value in boot sector
+     * FATsectors32: Logical sectors per FAT value from boot sector
+     */
+    unsigned char *FAT;
+    unsigned int fat_entry;
+    unsigned int fatsize = FATsectors32 << 9;     // correct if sector size is 512
+
+    FAT = (char *)malloc(sizeof(char) * fatsize);
+    fread(FAT, sizeof(char), fatsize, imagefile);       // read whole FAT
+
+    for(int k = 0; k < clusters; k++)    {
+        fat_entry = *(unsigned int *)&FAT[k << 2];
+        printf("%d -> %d [%X] \n", k, fat_entry, fat_entry);
+    }
+
     return;
 }
 
 void readFAT16(FILE *imagefile, unsigned int clusters, unsigned short FATsectors) {
+    /* imagefile: file handler of image file (obviously)
+     * clusters: number of clusters value from boot sector
+     * FATsectors: Logical sectors per FAT value from boot sector
+     */
     unsigned char *FAT;
     unsigned short fat_entry;
     unsigned int fatsize = FATsectors << 9;     // correct if sector size is 512
-    
+
     FAT = (char *)malloc(sizeof(char) * fatsize);
     fread(FAT, sizeof(char), fatsize, imagefile);       // read whole FAT
 
@@ -138,9 +157,9 @@ unsigned char* getFirstSector(FILE *imagefile)  {
         // if the file isn't a vdi file, set vdi_offset to FALSE
         vdi_offset = FALSE;
     }
-    
+
     return First512;
-}    
+}
 
 unsigned char isValidString(unsigned char *string, int len)     {
     /* this function checks a given string with a given length
@@ -166,6 +185,7 @@ SectorType determineSector(unsigned char *sector)       {
     // TODO: extended partition support.
     if( isValidString( &sector[3], 8 ) && (strncmp(&sector[3], "NTFS    ", 8) == 0))        return NTFS;
     else if( isValidString( &sector[3], 8 ) && isValidString( &sector[0x2B], 11 ) && isValidString( &sector[0x36], 8 ))      return FATBS;
+    else if( isValidString( &sector[3], 8 ) && isValidString( &sector[0x47], 19 ))      return FATBS;
     // TODO: in case none of the partitions are bootable, the disk is recognized as "undefined".
     // although there can be only one active partition only, the OR and comparison below is very
     // efficient in code size and speed but only "enough" accurate.
@@ -196,7 +216,7 @@ unsigned long processMBR(MBR_Type *sector)       {
         else
             existpartition[i] = 0;
     }
-    
+
     if(partitions == 0) {
         fprintf(stderr, "This disk doesn't contain any partition.\n");
         return 0;
@@ -213,7 +233,7 @@ unsigned long processMBR(MBR_Type *sector)       {
             } while( (c < 0x31) || (c > 0x34));         // input must be in [1,2,3,4]
             c = c - 0x31;       // ascii to num conversion with decrement of 1
         } while( existpartition[c] != 1 );      // stay in loop until a valid partition is selected
-        
+
         if(vdi_offset)
             // if this is a vdi file, starting sector offset must be within the vdi file
             return vdi_offset + (sector->entry[c].StartingLBA << 9);
@@ -245,10 +265,10 @@ void processFATBS(FILE *imagefile, BootSector *BS)       {
     unsigned int num_of_cluster;
 
     // test boot sector for FAT type, return FAT type and number of clusters
-    F = fattest(BS, &num_of_cluster);    
+    F = fattest(BS, &num_of_cluster);
     // printf("%d number of cluster\n", num_of_cluster);
     // printf("%d reserved sectors \n", BS->CommonPart.reserved_sector_count);
-    
+
     /* if reserved sectors are just one (which is the boot sector itself) 
      * there is no need for an additional fseek since FAT begins right after
      * the boot sector and we already sought there by reading whole boot sector
@@ -266,8 +286,7 @@ void processFATBS(FILE *imagefile, BootSector *BS)       {
     else if(F == FAT16)
         readFAT16(imagefile, num_of_cluster, BS->CommonPart.table_size_16);
     else 
-        readFAT32(imagefile, num_of_cluster, 0);        // Not implemented yet 
-
+        readFAT32(imagefile, num_of_cluster, BS->UnionPart.FAT32_BootSector.table_size_32);
 
 }
 
@@ -278,20 +297,20 @@ int main(int argc, char *argv[])        {
     MBR_Type      *MBR_Sector;
     long          boot_sect_offset;
     BootSector    *BS;
-    
+
     if( (imagefile = fopen(argv[1], "r")) == NULL)  {
         // just file not found. no complex checks
         fprintf(stderr, "Image file not found.\n");
         return 1;
     }
-    
+
     firstSector = getFirstSector(imagefile);    // unsigned char * (512 byte in size)
-    
+
     switch(determineSector(firstSector))        {
         case MBR: 
             boot_sect_offset = processMBR(MBR_Sector = (MBR_Type *)firstSector);
             if(!boot_sect_offset)   return 2; // temp == 0 => either GPT disk or no partition.
-            
+
             BS = (BootSector *)malloc(sizeof(BootSector));
             if(fseek(imagefile, boot_sect_offset, SEEK_SET))    {
                 fprintf(stderr, "fseek error.\n");
@@ -303,7 +322,7 @@ int main(int argc, char *argv[])        {
                  * this is most likely because vdi file is thin...  */
             }
             fread(BS, sizeof(BootSector), 1, imagefile);
-            
+
             if(determineSector((unsigned char *)BS) == FATBS)    {
                 printf("Processing FAT type boot sector...\n");
                 processFATBS(imagefile, BS);
@@ -314,7 +333,7 @@ int main(int argc, char *argv[])        {
             }
             break;
         case FATBS:
-            printf("Fat partition found.\n");
+            printf("FAT partition found.\n");
             // first sector is determined as boot sector. So pointer assignment:
             BS = (BootSector *)firstSector;
             processFATBS(imagefile, BS);
@@ -326,8 +345,7 @@ int main(int argc, char *argv[])        {
         default:
             fprintf(stderr, "Partition format not recognized. Possibly Linux EXT or PV.\n"); break;
     }
-    
-    
+
     fclose(imagefile);
     free(firstSector);
     return 0;

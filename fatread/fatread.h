@@ -9,7 +9,7 @@
 #define isValidChar(C)          ((C == 0x20) || (C == 0x2D) || (C == 0x2E) || (C == 0x5F) || ((C >= 0x30) && (C <= 0x39)) || ((C >= 0x41) && (C <= 0x5A)) || ((C >=0x61) && (C <= 0x7A)))
 
 
-enum SectorType { MBR, FATBS, NTFS, XFS, undefined };
+enum SectorType { MBR, FATBS, FAT32BS, NTFS, XFS, undefined };
 enum FATType { FAT12, FAT16, FAT32 };
 
 struct FATBPB           {       // Common for both FAT12 & FAT16 as well as FAT32
