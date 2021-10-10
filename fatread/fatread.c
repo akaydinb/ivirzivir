@@ -226,9 +226,9 @@ unsigned long processMBR(MBR_Type *sector)       {
             if(existpartition[i])       {
                 if(vdi_offset)
                     // if this is a vdi file, starting sector offset must be within the vdi file
-                    return vdi_offset + (sector->entry[c].StartingLBA << 9);
+                    return vdi_offset + (sector->entry[i].StartingLBA << 9);
                 else
-                    return (sector->entry[c].StartingLBA << 9);
+                    return (sector->entry[i].StartingLBA << 9);
             }
         }
     }
