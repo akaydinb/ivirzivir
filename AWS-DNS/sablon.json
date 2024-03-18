@@ -1,0 +1,11 @@
+{
+            "Comment": "CREATE/DELETE/UPSERT a record ",
+            "Changes": [{
+            "Action": "CREATE",
+                        "ResourceRecordSet": {
+                                    "Name": "CHANGEMEEE",
+                                    "Type": "A",
+                                    "TTL": 300,
+                                 "ResourceRecords": [{ "Value": "62.156.173.58"}]
+}}]
+}
