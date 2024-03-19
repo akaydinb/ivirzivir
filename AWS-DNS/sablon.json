@@ -6,6 +6,6 @@
                                     "Name": "CHANGEMEEE",
                                     "Type": "A",
                                     "TTL": 300,
-                                 "ResourceRecords": [{ "Value": "62.156.173.58"}]
+                                 "ResourceRecords": [{ "Value": "A.B.C.D"}]
 }}]
 }
