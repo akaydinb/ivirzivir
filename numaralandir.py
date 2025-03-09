@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import os
 from os  import listdir
 from PIL import Image
 from PIL import ImageDraw
@@ -11,7 +10,7 @@ from PIL.ExifTags import TAGS
 folder_dir = "."
 sirano = 1
 
-for images in os.listdir(folder_dir):
+for images in listdir(folder_dir):
     if (images.endswith(".jpg")):
         print(images)
 
@@ -41,5 +40,5 @@ for images in os.listdir(folder_dir):
         #rotated.show();
 
         #input("Press Enter to continue...")
-        rotated.save( os.path.splitext(images)[0] + "_enum.jpg" );
+        #rotated.save( os.path.splitext(images)[0] + "_enum.jpg" );
         sirano = sirano + 1
