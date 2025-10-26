@@ -124,9 +124,9 @@ void ScrollDown()   {
 		 * so that, one more invisible char will be copied additionally
 		 * but got the same result with one single instruction instead 
 		 * of four. The copy operation will be backwards, therefore 
-		 * the direction flag is set to UP and data is copied word by 
+		 * the direction flag is set to DOWN and data is copied word by 
 		 * word for the sake of speed. After that direction flag
-		 * is reset back. 
+		 * is reset back.
 		 */
 		push	ds
 		mov		cx, 4000
